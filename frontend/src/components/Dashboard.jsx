@@ -13,6 +13,7 @@
  *********************************************************************/
 import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownLeft, CreditCard, Search, ArrowUpDown, RefreshCw } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function Dashboard({ user, onRefreshUser }) {
   const [transactions, setTransactions] = useState([]);
@@ -106,9 +107,9 @@ export default function Dashboard({ user, onRefreshUser }) {
       {/* Balances Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '40px' }} id="balances-container">
         {/* Checking */}
-        <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
+        <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }} id="card-checking">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '600' }}>Checking Account</span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '600' }} id="label-checking">Checking Account</span>
             <div style={{ padding: '6px', borderRadius: '50%', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--accent-primary)' }}>
               <CreditCard size={20} />
             </div>
@@ -116,15 +117,15 @@ export default function Dashboard({ user, onRefreshUser }) {
           <h3 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)' }} id="checking-balance">
             ${user.balances.checking.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h3>
-          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-success)' }}>
+          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-success)' }} id="trend-checking">
             <ArrowDownLeft size={14} /> +3.2% vs last month
           </div>
         </div>
 
         {/* Savings */}
-        <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
+        <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }} id="card-savings">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '600' }}>Savings Account</span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '600' }} id="label-savings">Savings Account</span>
             <div style={{ padding: '6px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.1)', color: 'var(--accent-secondary)' }}>
               <CreditCard size={20} />
             </div>
@@ -132,15 +133,15 @@ export default function Dashboard({ user, onRefreshUser }) {
           <h3 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)' }} id="savings-balance">
             ${user.balances.savings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h3>
-          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-success)' }}>
+          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-success)' }} id="trend-savings">
             <ArrowDownLeft size={14} /> +0.55% APY compounding
           </div>
         </div>
 
         {/* Credit Card */}
-        <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }}>
+        <div className="glass-panel" style={{ padding: '24px', position: 'relative', overflow: 'hidden' }} id="card-creditcard">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '600' }}>Credit Card Balance</span>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '600' }} id="label-creditcard">Credit Card Balance</span>
             <div style={{ padding: '6px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-error)' }}>
               <CreditCard size={20} />
             </div>
@@ -148,8 +149,84 @@ export default function Dashboard({ user, onRefreshUser }) {
           <h3 style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-primary)' }} id="creditcard-balance">
             ${user.balances.creditCard.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </h3>
-          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-error)' }}>
+          <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--accent-error)' }} id="trend-creditcard">
             <ArrowUpRight size={14} /> Payment due in 15 days
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '20px', marginBottom: '40px' }} id="charts-container">
+        {/* Balance Distribution Pie Chart */}
+        <div className="glass-panel" style={{ padding: '24px' }} id="chart-pie-container">
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '20px' }} id="chart-pie-title">Asset Allocation</h3>
+          <div style={{ width: '100%', height: '220px', display: 'flex', justifyContent: 'center', alignItems: 'center' }} id="asset-allocation-chart">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: 'Checking', value: user.balances.checking },
+                    { name: 'Savings', value: user.balances.savings },
+                    { name: 'Credit Card', value: user.balances.creditCard }
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  <Cell fill="var(--accent-primary)" />
+                  <Cell fill="var(--accent-secondary)" />
+                  <Cell fill="var(--accent-error)" />
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '10px', fontSize: '12px' }} id="chart-pie-legend">
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-primary)' }}></span> Checking</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-secondary)' }}></span> Savings</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-error)' }}></span> Credit Card</span>
+          </div>
+        </div>
+
+        {/* Transaction History Area Chart */}
+        <div className="glass-panel" style={{ padding: '24px' }} id="chart-history-container">
+          <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '20px' }} id="chart-history-title">Transaction Activity</h3>
+          <div style={{ width: '100%', height: '220px' }} id="transaction-activity-chart">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={
+                  transactions.length > 0 
+                    ? [...transactions].reverse().map(tx => ({ name: tx.date, Amount: tx.amount }))
+                    : [
+                        { name: 'Jan', Amount: 400 },
+                        { name: 'Feb', Amount: 300 },
+                        { name: 'Mar', Amount: 600 },
+                        { name: 'Apr', Amount: 800 },
+                        { name: 'May', Amount: 500 }
+                      ]
+                }
+              >
+                <defs>
+                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--accent-primary)" stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor="var(--accent-primary)" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} />
+                <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                />
+                <Area type="monotone" dataKey="Amount" stroke="var(--accent-primary)" fillOpacity={1} fill="url(#colorAmount)" />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
