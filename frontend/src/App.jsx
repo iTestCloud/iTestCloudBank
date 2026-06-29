@@ -24,8 +24,69 @@ import TestingLab from './components/TestingLab';
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [currentView, setCurrentView] = useState('login'); // login, signup, dashboard, transfer, loan, support, profile, lab
   const [theme, setTheme] = useState('dark');
+  const [loadingSession, setLoadingSession] = useState(!!localStorage.getItem('itest_user_session'));
+
+  const viewToPath = {
+    login: '/login',
+    signup: '/signup',
+    dashboard: '/dashboard',
+    transfer: '/transfer',
+    loan: '/loan',
+    support: '/support',
+    lab: '/lab',
+    profile: '/profile'
+  };
+
+  const pathToView = {
+    '/login': 'login',
+    '/signup': 'signup',
+    '/dashboard': 'dashboard',
+    '/transfer': 'transfer',
+    '/loan': 'loan',
+    '/support': 'support',
+    '/lab': 'lab',
+    '/profile': 'profile'
+  };
+
+  const [currentView, setCurrentView] = useState(() => {
+    const path = window.location.pathname;
+    const view = pathToView[path];
+    if (view) {
+      if (view === 'login' || view === 'signup') return view;
+      const savedSession = localStorage.getItem('itest_user_session');
+      return savedSession ? view : 'login';
+    }
+    const savedSession = localStorage.getItem('itest_user_session');
+    return savedSession ? 'dashboard' : 'login';
+  });
+
+  const navigateView = (viewName) => {
+    setCurrentView(viewName);
+    const path = viewToPath[viewName] || '/login';
+    if (window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
+  };
+
+  // Sync state on history back/forward
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const view = pathToView[path];
+      if (view) {
+        const savedSession = localStorage.getItem('itest_user_session');
+        if (!savedSession && !['login', 'signup'].includes(view)) {
+          setCurrentView('login');
+          window.history.replaceState(null, '', '/login');
+        } else {
+          setCurrentView(view);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Load user session from localStorage on start
   useEffect(() => {
@@ -33,10 +94,19 @@ export default function App() {
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
-        // Verify with server that user still exists
         fetchProfile(parsed.username);
       } catch (e) {
         localStorage.removeItem('itest_user_session');
+        setLoadingSession(false);
+        navigateView('login');
+      }
+    } else {
+      const path = window.location.pathname;
+      const view = pathToView[path];
+      if (view && ['login', 'signup'].includes(view)) {
+        navigateView(view);
+      } else {
+        navigateView('login');
       }
     }
   }, []);
@@ -47,19 +117,35 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setUser(data);
-        setCurrentView('dashboard');
+        const path = window.location.pathname;
+        const view = pathToView[path];
+        if (view && !['login', 'signup'].includes(view)) {
+          navigateView(view);
+        } else {
+          navigateView('dashboard');
+        }
       } else {
         localStorage.removeItem('itest_user_session');
+        navigateView('login');
       }
     } catch (e) {
       console.error("Error checking session", e);
+      navigateView('login');
+    } finally {
+      setLoadingSession(false);
     }
   };
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
     localStorage.setItem('itest_user_session', JSON.stringify(userData));
-    setCurrentView('dashboard');
+    const path = window.location.pathname;
+    const view = pathToView[path];
+    if (view && !['login', 'signup'].includes(view)) {
+      navigateView(view);
+    } else {
+      navigateView('dashboard');
+    }
   };
 
   const handleRefreshUser = () => {
@@ -86,13 +172,13 @@ export default function App() {
   const handleSignOut = () => {
     setUser(null);
     localStorage.removeItem('itest_user_session');
-    setCurrentView('login');
+    navigateView('login');
   };
 
   const handleDeleteAccount = () => {
     setUser(null);
     localStorage.removeItem('itest_user_session');
-    setCurrentView('login');
+    navigateView('login');
     alert("Your account has been deleted permanently.");
   };
 
@@ -106,25 +192,29 @@ export default function App() {
     }
   };
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   // Nav helper
   const renderNavButton = (viewName, label, IconComponent) => {
     const isActive = currentView === viewName;
     return (
       <button
-        onClick={() => setCurrentView(viewName)}
+        onClick={() => navigateView(viewName)}
         className="btn"
         id={`nav-${viewName}-btn`}
+        title={isSidebarCollapsed ? label : undefined}
         style={{
           background: isActive ? 'var(--bg-surface-hover)' : 'transparent',
           border: isActive ? '1px solid var(--border-color)' : '1px solid transparent',
           color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)',
-          justifyContent: 'flex-start',
-          padding: '8px 16px',
-          width: '100%'
+          justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+          padding: isSidebarCollapsed ? '8px' : '8px 16px',
+          width: '100%',
+          gap: isSidebarCollapsed ? '0' : '8px'
         }}
       >
         <IconComponent size={18} />
-        <span style={{ fontSize: '14px', fontWeight: '500' }}>{label}</span>
+        {!isSidebarCollapsed && <span style={{ fontSize: '14px', fontWeight: '500' }}>{label}</span>}
       </button>
     );
   };
@@ -173,7 +263,40 @@ export default function App() {
       {user ? (
         <div style={{ display: 'flex', minHeight: 'calc(100vh - 70px)' }}>
           {/* Sidebar Nav */}
-          <aside className="glass-panel" style={{ width: '260px', borderRadius: 0, borderTop: 'none', borderBottom: 'none', borderLeft: 'none', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }} id="sidebar-nav">
+          <aside 
+            className="glass-panel" 
+            style={{ 
+              width: isSidebarCollapsed ? '70px' : '260px', 
+              borderRadius: 0, 
+              borderTop: 'none', 
+              borderBottom: 'none', 
+              borderLeft: 'none', 
+              padding: '16px 10px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '6px',
+              transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            }} 
+            id="sidebar-nav"
+          >
+            {/* Collapse Toggle Button */}
+            <button
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="btn btn-secondary"
+              id="sidebar-toggle-btn"
+              title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              style={{
+                marginBottom: '12px',
+                padding: '8px',
+                justifyContent: 'center',
+                width: '100%',
+                border: '1px solid var(--border-color)',
+                fontSize: '12px'
+              }}
+            >
+              {isSidebarCollapsed ? '▶' : '◀'}
+            </button>
+
             {renderNavButton('dashboard', 'Dashboard', Home)}
             {renderNavButton('transfer', 'Fund Transfer', Send)}
             {renderNavButton('loan', 'Apply for Loan', Wallet)}
@@ -197,12 +320,12 @@ export default function App() {
           {currentView === 'login' && (
             <Login 
               onLoginSuccess={handleLoginSuccess} 
-              onNavigateToSignup={() => setCurrentView('signup')} 
+              onNavigateToSignup={() => navigateView('signup')} 
             />
           )}
           {currentView === 'signup' && (
             <Signup 
-              onNavigateToLogin={() => setCurrentView('login')} 
+              onNavigateToLogin={() => navigateView('login')} 
             />
           )}
         </div>
