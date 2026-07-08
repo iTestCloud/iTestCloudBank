@@ -54,7 +54,7 @@ export default function Login({ onLoginSuccess, onNavigateToSignup }) {
       </div>
 
       {error && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--accent-error)', borderRadius: 'var(--radius-sm)', color: 'var(--accent-error)', fontSize: '14px', marginBottom: '20px' }}>
+        <div id="login-error" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--accent-error)', borderRadius: 'var(--radius-sm)', color: 'var(--accent-error)', fontSize: '14px', marginBottom: '20px' }}>
           <AlertCircle size={18} id="login-error-icon" />
           <span id="login-error-msg">{error}</span>
         </div>
