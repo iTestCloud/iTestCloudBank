@@ -223,7 +223,11 @@ export default function App() {
     <div>
       {/* Global Header */}
       <header className="glass-panel" style={{ borderRadius: 0, borderTop: 'none', borderLeft: 'none', borderRight: 'none', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} id="app-logo">
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: user ? 'pointer' : 'default' }} 
+          id="app-logo"
+          onClick={() => user && navigateView('dashboard')}
+        >
           <span style={{ fontSize: '24px' }}>🏦</span>
           <span id="app-title" style={{ fontWeight: '800', fontSize: '18px', letterSpacing: '-0.5px' }}>iTestCloud <span style={{ color: 'var(--accent-primary)' }}>Bank</span></span>
         </div>
