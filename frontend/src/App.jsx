@@ -244,7 +244,7 @@ export default function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }} id="user-profile-summary">
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '13px', fontWeight: '600' }} id="user-display-name">{user.fullName}</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ID: {user.username}</div>
+                <div id="user-id" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>ID: {user.username}</div>
               </div>
               <button 
                 onClick={handleSignOut}
