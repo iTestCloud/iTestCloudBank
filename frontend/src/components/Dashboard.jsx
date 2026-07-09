@@ -97,18 +97,29 @@ export default function Dashboard({ user, onRefreshUser }) {
     }
   };
 
-  // Delete Custom Account
-  const handleDeleteAccount = async (accountId, event) => {
-    event.stopPropagation(); // prevent opening the account view
-    if (!confirm('Are you sure you want to remove this account?')) return;
+  // Account Deletion State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingAccountId, setDeletingAccountId] = useState(null);
+
+  // Trigger modal confirmation instead of window.confirm
+  const triggerDeleteConfirm = (accountId, event) => {
+    event.stopPropagation();
+    setDeletingAccountId(accountId);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingAccountId) return;
     try {
-      const res = await fetch(`/api/accounts/delete/${user.username}/${accountId}`, {
+      const res = await fetch(`/api/accounts/delete/${user.username}/${deletingAccountId}`, {
         method: 'DELETE'
       });
       if (res.ok) {
-        if (selectedAccount && selectedAccount.id === accountId) {
+        if (selectedAccount && selectedAccount.id === deletingAccountId) {
           setSelectedAccount(null);
         }
+        setShowDeleteModal(false);
+        setDeletingAccountId(null);
         onRefreshUser();
         fetchTransactions();
       }
@@ -258,8 +269,9 @@ export default function Dashboard({ user, onRefreshUser }) {
               <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Status: Active</p>
               <button 
                 className="btn btn-secondary" 
-                onClick={(e) => handleDeleteAccount(selectedAccount.id, e)} 
+                onClick={(e) => triggerDeleteConfirm(selectedAccount.id, e)} 
                 style={{ borderColor: 'var(--accent-error)', color: 'var(--accent-error)', marginTop: '10px', padding: '6px 12px', fontSize: '12px' }}
+                id="opened-delete-acc-btn"
               >
                 <Trash2 size={14} /> Remove Account
               </button>
@@ -293,7 +305,7 @@ export default function Dashboard({ user, onRefreshUser }) {
                 <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
                   <span style={{ color: colors.text, fontWeight: '600' }}>{acc.type}</span>
                   <button 
-                    onClick={(e) => handleDeleteAccount(acc.id, e)} 
+                    onClick={(e) => triggerDeleteConfirm(acc.id, e)} 
                     style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                     title="Remove Account"
                     id={`delete-acc-${acc.id}`}
@@ -596,6 +608,58 @@ export default function Dashboard({ user, onRefreshUser }) {
                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Create</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Account Deletion Modal */}
+      {showDeleteModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          backdropFilter: 'blur(8px)'
+        }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '30px', position: 'relative', textAlign: 'center' }}>
+            <button 
+              onClick={() => { setShowDeleteModal(false); setDeletingAccountId(null); }} 
+              style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+            <div style={{ margin: '0 auto 15px auto', width: '50px', height: '50px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--accent-error)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <Trash2 size={24} />
+            </div>
+            <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '10px' }}>Remove Bank Account?</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
+              Are you sure you want to delete this account? This action cannot be undone.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ flex: 1 }} 
+                onClick={() => { setShowDeleteModal(false); setDeletingAccountId(null); }}
+                id="cancel-delete-account-btn"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="btn btn-primary" 
+                style={{ flex: 1, background: 'linear-gradient(135deg, var(--accent-error) 0%, #b91c1c 100%)', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }} 
+                onClick={handleConfirmDelete}
+                id="confirm-delete-account-btn"
+              >
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       )}
