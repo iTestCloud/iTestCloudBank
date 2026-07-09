@@ -27,6 +27,11 @@ export default function App() {
   const [theme, setTheme] = useState('dark');
   const [loadingSession, setLoadingSession] = useState(!!localStorage.getItem('itest_user_session'));
 
+  const [selectedAccountId, setSelectedAccountId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('id') || null;
+  });
+
   const viewToPath = {
     login: '/login',
     signup: '/signup',
@@ -35,7 +40,8 @@ export default function App() {
     loan: '/loan',
     support: '/support',
     lab: '/lab',
-    profile: '/profile'
+    profile: '/profile',
+    account: '/account'
   };
 
   const pathToView = {
@@ -46,7 +52,8 @@ export default function App() {
     '/loan': 'loan',
     '/support': 'support',
     '/lab': 'lab',
-    '/profile': 'profile'
+    '/profile': 'profile',
+    '/account': 'account'
   };
 
   const [currentView, setCurrentView] = useState(() => {
@@ -63,9 +70,32 @@ export default function App() {
 
   const navigateView = (viewName) => {
     setCurrentView(viewName);
-    const path = viewToPath[viewName] || '/login';
-    if (window.location.pathname !== path) {
+    if (viewName !== 'account') {
+      setSelectedAccountId(null);
+    }
+    let path = viewToPath[viewName] || '/login';
+    if (viewName === 'account' && selectedAccountId) {
+      path = `/account?id=${selectedAccountId}`;
+    }
+    if (window.location.pathname !== path.split('?')[0]) {
       window.history.pushState(null, '', path);
+    }
+  };
+
+  const onSelectAccount = (accId) => {
+    if (accId) {
+      setSelectedAccountId(accId);
+      setCurrentView('account');
+      const path = `/account?id=${accId}`;
+      if (window.location.pathname !== '/account' || new URLSearchParams(window.location.search).get('id') !== accId) {
+        window.history.pushState(null, '', path);
+      }
+    } else {
+      setSelectedAccountId(null);
+      setCurrentView('dashboard');
+      if (window.location.pathname !== '/dashboard') {
+        window.history.pushState(null, '', '/dashboard');
+      }
     }
   };
 
@@ -81,6 +111,12 @@ export default function App() {
           window.history.replaceState(null, '', '/login');
         } else {
           setCurrentView(view);
+          if (view === 'account') {
+            const params = new URLSearchParams(window.location.search);
+            setSelectedAccountId(params.get('id') || null);
+          } else {
+            setSelectedAccountId(null);
+          }
         }
       }
     };
@@ -120,7 +156,19 @@ export default function App() {
         const path = window.location.pathname;
         const view = pathToView[path];
         if (view && !['login', 'signup'].includes(view)) {
-          navigateView(view);
+          if (view === 'account') {
+            const params = new URLSearchParams(window.location.search);
+            const accId = params.get('id');
+            if (accId) {
+              setSelectedAccountId(accId);
+              setCurrentView('account');
+              window.history.replaceState(null, '', `/account?id=${accId}`);
+            } else {
+              navigateView('dashboard');
+            }
+          } else {
+            navigateView(view);
+          }
         } else {
           navigateView('dashboard');
         }
@@ -142,7 +190,19 @@ export default function App() {
     const path = window.location.pathname;
     const view = pathToView[path];
     if (view && !['login', 'signup'].includes(view)) {
-      navigateView(view);
+      if (view === 'account') {
+        const params = new URLSearchParams(window.location.search);
+        const accId = params.get('id');
+        if (accId) {
+          setSelectedAccountId(accId);
+          setCurrentView('account');
+          window.history.replaceState(null, '', `/account?id=${accId}`);
+        } else {
+          navigateView('dashboard');
+        }
+      } else {
+        navigateView(view);
+      }
     } else {
       navigateView('dashboard');
     }
@@ -194,7 +254,7 @@ export default function App() {
 
   // Nav helper
   const renderNavButton = (viewName, label, IconComponent) => {
-    const isActive = currentView === viewName;
+    const isActive = currentView === viewName || (viewName === 'dashboard' && currentView === 'account');
     return (
       <button
         onClick={() => navigateView(viewName)}
@@ -309,7 +369,14 @@ export default function App() {
 
           {/* Core Content */}
           <main style={{ flex: 1, padding: '40px', overflowY: 'auto' }} id="main-content-viewport">
-            {currentView === 'dashboard' && <Dashboard user={user} onRefreshUser={handleRefreshUser} />}
+            {(currentView === 'dashboard' || currentView === 'account') && (
+              <Dashboard 
+                user={user} 
+                onRefreshUser={handleRefreshUser} 
+                selectedAccountId={selectedAccountId}
+                onSelectAccount={onSelectAccount}
+              />
+            )}
             {currentView === 'transfer' && <Transfer user={user} onTransferSuccess={handleTransferSuccess} />}
             {currentView === 'loan' && <Loan user={user} />}
             {currentView === 'support' && <Support user={user} />}
