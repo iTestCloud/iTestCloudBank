@@ -15,7 +15,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownLeft, CreditCard, Search, ArrowUpDown, RefreshCw, Plus, Trash2, X, Briefcase, ArrowLeft } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-export default function Dashboard({ user, onRefreshUser }) {
+export default function Dashboard({ user, onRefreshUser, selectedAccountId, onSelectAccount }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,8 +31,14 @@ export default function Dashboard({ user, onRefreshUser }) {
   const [newAccBalance, setNewAccBalance] = useState('');
   const [createError, setCreateError] = useState('');
 
-  // Selected/Opened Account Details State
-  const [selectedAccount, setSelectedAccount] = useState(null);
+  // Derived Account Details State
+  const activeAccounts = user.accounts || [
+    { id: 'acc-checking', name: 'Checking Account', type: 'Checking', balance: user.balances.checking },
+    { id: 'acc-savings', name: 'Savings Account', type: 'Savings', balance: user.balances.savings },
+    { id: 'acc-creditcard', name: 'Credit Card', type: 'Credit Card', balance: user.balances.creditCard }
+  ];
+
+  const selectedAccount = activeAccounts.find(acc => acc.id === selectedAccountId) || null;
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -115,8 +121,8 @@ export default function Dashboard({ user, onRefreshUser }) {
         method: 'DELETE'
       });
       if (res.ok) {
-        if (selectedAccount && selectedAccount.id === deletingAccountId) {
-          setSelectedAccount(null);
+        if (selectedAccountId === deletingAccountId) {
+          onSelectAccount(null);
         }
         setShowDeleteModal(false);
         setDeletingAccountId(null);
@@ -127,13 +133,6 @@ export default function Dashboard({ user, onRefreshUser }) {
       console.error(err);
     }
   };
-
-  // Safe fallback if user has no accounts list
-  const activeAccounts = user.accounts || [
-    { id: 'acc-checking', name: 'Checking Account', type: 'Checking', balance: user.balances.checking },
-    { id: 'acc-savings', name: 'Savings Account', type: 'Savings', balance: user.balances.savings },
-    { id: 'acc-creditcard', name: 'Credit Card', type: 'Credit Card', balance: user.balances.creditCard }
-  ];
 
   // Helper colors for account card indicators
   const getAccountColors = (type) => {
@@ -230,7 +229,7 @@ export default function Dashboard({ user, onRefreshUser }) {
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           {selectedAccount && (
-            <button className="btn btn-secondary" onClick={() => setSelectedAccount(null)} id="back-to-overview-btn" style={{ padding: '8px 12px' }}>
+            <button className="btn btn-secondary" onClick={() => onSelectAccount(null)} id="back-to-overview-btn" style={{ padding: '8px 12px' }}>
               <ArrowLeft size={16} /> Overview
             </button>
           )}
@@ -291,7 +290,7 @@ export default function Dashboard({ user, onRefreshUser }) {
                 className="glass-panel" 
                 style={{ padding: '24px', position: 'relative', overflow: 'hidden', cursor: 'pointer', border: `1px solid ${colors.border}` }} 
                 id={`card-${acc.id}`}
-                onClick={() => setSelectedAccount(acc)}
+                onClick={() => onSelectAccount(acc.id)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                   <span style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: '600' }}>{acc.name}</span>
