@@ -77,6 +77,11 @@ app.post('/api/register', (req, res) => {
     gender: gender || 'Other',
     accountType: accountType || 'Checking',
     joinDate: new Date().toLocaleDateString(),
+    accounts: [
+      { id: 'acc-checking', name: 'Checking Account', type: 'Checking', balance: 1500.00 },
+      { id: 'acc-savings', name: 'Savings Account', type: 'Savings', balance: 10000.00 },
+      { id: 'acc-creditcard', name: 'Credit Card', type: 'Credit Card', balance: -250.00 }
+    ],
     balances: {
       checking: 1500.00,
       savings: 10000.00,
@@ -92,7 +97,7 @@ app.post('/api/register', (req, res) => {
       id: 'tx-1',
       username,
       fromAccount: 'External',
-      toAccount: 'checking',
+      toAccount: 'acc-checking',
       payeeName: 'Initial Deposit',
       routingNumber: '000000000',
       amount: 1500.00,
@@ -103,7 +108,7 @@ app.post('/api/register', (req, res) => {
     {
       id: 'tx-2',
       username,
-      fromAccount: 'savings',
+      fromAccount: 'acc-savings',
       toAccount: 'External',
       payeeName: 'Savings Transfer',
       routingNumber: '000000000',
@@ -124,9 +129,20 @@ app.post('/api/login', simulateDelay, (req, res) => {
   const { username, password } = req.body;
   const users = db.getUsers();
   
-  const user = users.find(u => u.username === username && u.password === password);
-  if (!user) {
+  const userIndex = users.findIndex(u => u.username === username && u.password === password);
+  if (userIndex === -1) {
     return res.status(401).json({ error: "Invalid username or password." });
+  }
+
+  const user = users[userIndex];
+  // Migrate old users who don't have accounts array
+  if (!user.accounts) {
+    user.accounts = [
+      { id: 'acc-checking', name: 'Checking Account', type: 'Checking', balance: user.balances.checking || 0 },
+      { id: 'acc-savings', name: 'Savings Account', type: 'Savings', balance: user.balances.savings || 0 },
+      { id: 'acc-creditcard', name: 'Credit Card', type: 'Credit Card', balance: user.balances.creditCard || 0 }
+    ];
+    db.saveUser(user);
   }
 
   // Omit password in response
@@ -141,6 +157,17 @@ app.get('/api/profile/:username', (req, res) => {
   if (!user) {
     return res.status(404).json({ error: "User not found." });
   }
+
+  // Migrate old users who don't have accounts array
+  if (!user.accounts) {
+    user.accounts = [
+      { id: 'acc-checking', name: 'Checking Account', type: 'Checking', balance: user.balances.checking || 0 },
+      { id: 'acc-savings', name: 'Savings Account', type: 'Savings', balance: user.balances.savings || 0 },
+      { id: 'acc-creditcard', name: 'Credit Card', type: 'Credit Card', balance: user.balances.creditCard || 0 }
+    ];
+    db.saveUser(user);
+  }
+
   const { password: _, ...userWithoutPassword } = user;
   res.json(userWithoutPassword);
 });
@@ -180,6 +207,72 @@ app.delete('/api/profile/delete/:username', (req, res) => {
   res.json({ message: "Account deleted successfully." });
 });
 
+// CREATE CUSTOM ACCOUNT
+app.post('/api/accounts/create', (req, res) => {
+  const { username, name, type, initialBalance } = req.body;
+  if (!username || !name || !type) {
+    return res.status(400).json({ error: "Missing required fields." });
+  }
+
+  const users = db.getUsers();
+  const user = users.find(u => u.username === username);
+  if (!user) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  const initBal = parseFloat(initialBalance) || 0;
+  const newAccount = {
+    id: `acc-${Date.now()}`,
+    name,
+    type,
+    balance: initBal
+  };
+
+  if (!user.accounts) {
+    user.accounts = [];
+  }
+  user.accounts.push(newAccount);
+  db.saveUser(user);
+
+  // Save an initial transaction if deposit is positive
+  if (initBal > 0) {
+    const transfer = {
+      id: `tx-${Date.now()}`,
+      username,
+      fromAccount: 'External',
+      toAccount: newAccount.id,
+      payeeName: 'Opening Deposit',
+      routingNumber: '000000000',
+      amount: initBal,
+      description: `Initial funding for ${name}`,
+      date: new Date().toLocaleDateString(),
+      status: 'Completed'
+    };
+    db.saveTransfer(transfer);
+  }
+
+  res.status(201).json({ message: "Account created successfully", user });
+});
+
+// DELETE CUSTOM ACCOUNT
+app.delete('/api/accounts/delete/:username/:accountId', (req, res) => {
+  const { username, accountId } = req.params;
+  const users = db.getUsers();
+  const user = users.find(u => u.username === username);
+  if (!user) {
+    return res.status(404).json({ error: "User not found." });
+  }
+
+  if (!user.accounts) {
+    return res.status(404).json({ error: "No accounts found." });
+  }
+
+  user.accounts = user.accounts.filter(acc => acc.id !== accountId);
+  db.saveUser(user);
+
+  res.json({ message: "Account removed successfully", user });
+});
+
 // 6. FUND TRANSFER (with optional custom latency and dynamic status checks)
 app.post('/api/transfer', simulateDelay, (req, res) => {
   const { username, fromAccount, toAccount, payeeName, routingNumber, amount, description } = req.body;
@@ -199,19 +292,25 @@ app.post('/api/transfer', simulateDelay, (req, res) => {
     return res.status(400).json({ error: "Amount must be a positive number." });
   }
 
-  // If transferring from internal account, check balance
+  // If transferring from internal account, check balance and deduct
   if (fromAccount !== 'External') {
-    const balance = user.balances[fromAccount];
-    if (balance === undefined || balance < amt) {
-      return res.status(400).json({ error: `Insufficient funds in ${fromAccount} account.` });
+    const acc = user.accounts.find(a => a.id === fromAccount || a.name.toLowerCase() === fromAccount.toLowerCase());
+    if (!acc) {
+      return res.status(400).json({ error: "Source account not found." });
     }
-    // Deduct
-    user.balances[fromAccount] -= amt;
+    if (acc.balance < amt) {
+      return res.status(400).json({ error: `Insufficient funds in ${acc.name}.` });
+    }
+    acc.balance -= amt;
   }
 
   // If transferring to internal account, add
   if (toAccount !== 'External') {
-    user.balances[toAccount] += amt;
+    const acc = user.accounts.find(a => a.id === toAccount || a.name.toLowerCase() === toAccount.toLowerCase());
+    if (!acc) {
+      return res.status(400).json({ error: "Destination account not found." });
+    }
+    acc.balance += amt;
   }
 
   db.saveUser(user);
@@ -230,7 +329,7 @@ app.post('/api/transfer', simulateDelay, (req, res) => {
   };
 
   db.saveTransfer(transfer);
-  res.json({ message: "Transfer successful", transfer, balances: user.balances });
+  res.json({ message: "Transfer successful", transfer, user });
 });
 
 // 7. GET TRANSACTION HISTORY

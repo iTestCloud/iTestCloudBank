@@ -29,6 +29,24 @@ export default function Transfer({ user, onTransferSuccess }) {
   const [loading, setLoading] = useState(false);
   const [delaySecs, setDelaySecs] = useState(0);
 
+  // Safe fallback if user has no accounts list
+  const activeAccounts = user.accounts || [
+    { id: 'acc-checking', name: 'Checking Account', type: 'Checking', balance: user.balances?.checking || 0 },
+    { id: 'acc-savings', name: 'Savings Account', type: 'Savings', balance: user.balances?.savings || 0 },
+    { id: 'acc-creditcard', name: 'Credit Card', type: 'Credit Card', balance: user.balances?.creditCard || 0 }
+  ];
+
+  // Set default account IDs if not set or if they are outdated
+  useState(() => {
+    const firstAcc = activeAccounts[0]?.id || 'checking';
+    const secondAcc = activeAccounts[1]?.id || activeAccounts[0]?.id || 'savings';
+    setFormData(prev => ({
+      ...prev,
+      fromAccount: firstAcc,
+      toAccount: secondAcc
+    }));
+  });
+
   const handleAccountTypeChange = (e) => {
     const { name, value } = e.target;
     
@@ -70,10 +88,10 @@ export default function Transfer({ user, onTransferSuccess }) {
       }
 
       setSuccess(`Successfully transferred $${parseFloat(formData.amount).toFixed(2)}!`);
-      onTransferSuccess(data.balances);
+      onTransferSuccess(data.user);
       setFormData({
-        fromAccount: 'checking',
-        toAccount: 'savings',
+        fromAccount: activeAccounts[0]?.id || 'checking',
+        toAccount: activeAccounts[1]?.id || 'savings',
         payeeName: '',
         routingNumber: '',
         amount: '',
@@ -119,9 +137,11 @@ export default function Transfer({ user, onTransferSuccess }) {
               value={formData.fromAccount}
               onChange={handleAccountTypeChange}
             >
-              <option value="checking">Checking (${user.balances.checking.toFixed(2)})</option>
-              <option value="savings">Savings (${user.balances.savings.toFixed(2)})</option>
-              <option value="creditCard">Credit Card (${user.balances.creditCard.toFixed(2)})</option>
+              {activeAccounts.map(acc => (
+                <option key={`from-${acc.id}`} value={acc.id}>
+                  {acc.name} (${acc.balance.toFixed(2)})
+                </option>
+              ))}
               <option value="External">External Bank (Deposit)</option>
             </select>
           </div>
@@ -135,9 +155,11 @@ export default function Transfer({ user, onTransferSuccess }) {
               value={formData.toAccount}
               onChange={handleAccountTypeChange}
             >
-              <option value="checking">Checking (${user.balances.checking.toFixed(2)})</option>
-              <option value="savings">Savings (${user.balances.savings.toFixed(2)})</option>
-              <option value="creditCard">Credit Card (${user.balances.creditCard.toFixed(2)})</option>
+              {activeAccounts.map(acc => (
+                <option key={`to-${acc.id}`} value={acc.id}>
+                  {acc.name} (${acc.balance.toFixed(2)})
+                </option>
+              ))}
               <option value="External">External Bank (Withdrawal/Wire)</option>
             </select>
           </div>

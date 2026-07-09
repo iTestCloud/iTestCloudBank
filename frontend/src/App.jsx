@@ -162,11 +162,9 @@ export default function App() {
     localStorage.setItem('itest_user_session', JSON.stringify({ ...user, ...updatedUser }));
   };
 
-  const handleTransferSuccess = (newBalances) => {
-    setUser(prev => ({
-      ...prev,
-      balances: newBalances
-    }));
+  const handleTransferSuccess = (updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem('itest_user_session', JSON.stringify(updatedUser));
   };
 
   const handleSignOut = () => {
