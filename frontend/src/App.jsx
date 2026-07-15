@@ -299,7 +299,7 @@ export default function App() {
             style={{ borderRadius: '50%', padding: '8px', width: '38px', height: '38px' }}
             title="Toggle Light/Dark Theme"
           >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            {theme === 'dark' ? <Sun size={18} id="theme-toggle-icon" /> : <Moon size={18} id="theme-toggle-icon" />}
           </button>
 
           {user && (
